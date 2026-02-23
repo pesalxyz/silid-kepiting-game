@@ -5,17 +5,20 @@ function defaultNames(n = 6) {
 }
 
 function makePlayer(id, name, score = 0, stats) {
+  const mappedStats = stats || {};
+  const asImpostor = Number(mappedStats.asImpostor ?? mappedStats.asSilid) || 0;
   return {
     id,
     name,
     alive: true,
     score,
-    stats: stats || {
+    stats: {
       asWarga: 0,
-      asSilid: 0,
+      asImpostor,
       asKepiting: 0,
       eliminated: 0,
-      bonusHits: 0
+      bonusHits: 0,
+      ...mappedStats
     }
   };
 }
@@ -37,7 +40,8 @@ export const state = {
     gameMode: "elimination",
     fixedRounds: 3,
     spectatorMode: false,
-    openVotingLiveCounter: true
+    openVotingLiveCounter: true,
+    hideRoleDuringReveal: true
   },
   round: {
     number: 0,
@@ -88,6 +92,16 @@ export function hydrateState() {
 
     const count = Math.min(12, Math.max(3, Number(state.settings.playersCount) || 6));
     state.settings.playersCount = count;
+    if (state.settings.hideRoleDuringReveal === undefined) {
+      state.settings.hideRoleDuringReveal = true;
+    } else {
+      state.settings.hideRoleDuringReveal = state.settings.hideRoleDuringReveal === true || state.settings.hideRoleDuringReveal === "on";
+    }
+    const maxImpostor = count <= 4 ? 1 : count <= 8 ? 2 : 3;
+    state.settings.silidCount = Math.max(1, Math.min(maxImpostor, Number(state.settings.silidCount) || 1));
+    const kepBaseMax = count >= 7 ? 2 : 1;
+    const kepMax = Math.max(0, Math.min(kepBaseMax, count - state.settings.silidCount - 1));
+    state.settings.kepitingCount = Math.max(0, Math.min(kepMax, Number(state.settings.kepitingCount) || 0));
     if (!Array.isArray(state.settings.playerNames) || state.settings.playerNames.length !== count) {
       state.settings.playerNames = defaultNames(count);
     }
@@ -134,7 +148,7 @@ export function resizePlayers(count) {
 export function resetScores() {
   state.players.forEach((p) => {
     p.score = 0;
-    p.stats = { asWarga: 0, asSilid: 0, asKepiting: 0, eliminated: 0, bonusHits: 0 };
+    p.stats = { asWarga: 0, asImpostor: 0, asKepiting: 0, eliminated: 0, bonusHits: 0 };
     p.alive = true;
   });
   persistState();

@@ -1,9 +1,9 @@
-# Silid Kepiting Game
+# Impostor Kepiting Game
 
 Party word deduction game mobile-first (3-12 pemain), full client-side, offline-ready.
 
 ## Fitur Utama
-- Peran: Warga, Silid, Kepiting
+- Peran: Warga, Impostor, Kepiting
 - Long-press reveal (500ms) + vibration feedback
 - Mode voting:
   - Pass & Vote (Secret)

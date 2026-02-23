@@ -75,6 +75,11 @@ function updateWarning(msg = "") {
   state.warning = msg;
 }
 
+function getKepitingMax(playersCount, impostorCount) {
+  const baseMax = playersCount >= 7 ? 2 : 1;
+  return Math.max(0, Math.min(baseMax, playersCount - impostorCount - 1));
+}
+
 function render() {
   if (state.settings.gameMode === "elimination" && state.round.lockedAssignments && state.phase === "reveal") {
     state.phase = "discussion";
@@ -194,12 +199,13 @@ function bindSetupActions() {
   const gameMode = document.getElementById("gameMode");
   const fixedRounds = document.getElementById("fixedRounds");
   const spectatorMode = document.getElementById("spectatorMode");
+  const hideRoleDuringReveal = document.getElementById("hideRoleDuringReveal");
 
   playersCount.onchange = () => {
     resizePlayers(Number(playersCount.value));
     const maxSilid = getMaxSilid(state.settings.playersCount);
     if (state.settings.silidCount > maxSilid) state.settings.silidCount = maxSilid;
-    const kepMax = Math.max(0, Math.min(1, state.settings.playersCount - state.settings.silidCount - 1));
+    const kepMax = getKepitingMax(state.settings.playersCount, state.settings.silidCount);
     if (state.settings.kepitingCount > kepMax) state.settings.kepitingCount = kepMax;
     persistState();
     render();
@@ -208,14 +214,14 @@ function bindSetupActions() {
   silidCount.onchange = () => {
     const maxSilid = getMaxSilid(state.settings.playersCount);
     state.settings.silidCount = Math.max(1, Math.min(maxSilid, Number(silidCount.value) || 1));
-    const kepMax = Math.max(0, Math.min(1, state.settings.playersCount - state.settings.silidCount - 1));
+    const kepMax = getKepitingMax(state.settings.playersCount, state.settings.silidCount);
     if (state.settings.kepitingCount > kepMax) state.settings.kepitingCount = kepMax;
     persistState();
     render();
   };
 
   kepitingCount.onchange = () => {
-    const kepMax = Math.max(0, Math.min(1, state.settings.playersCount - state.settings.silidCount - 1));
+    const kepMax = getKepitingMax(state.settings.playersCount, state.settings.silidCount);
     state.settings.kepitingCount = Math.max(0, Math.min(kepMax, Number(kepitingCount.value) || 0));
     persistState();
     render();
@@ -253,6 +259,11 @@ function bindSetupActions() {
 
   spectatorMode.onchange = () => {
     state.settings.spectatorMode = spectatorMode.value === "on";
+    persistState();
+  };
+
+  hideRoleDuringReveal.onchange = () => {
+    state.settings.hideRoleDuringReveal = hideRoleDuringReveal.value === "on";
     persistState();
   };
 
@@ -300,13 +311,17 @@ function bindSetupActions() {
     state.settings.playerNames = sanitizeNames(state.settings.playerNames, state.settings.playersCount);
     resizePlayers(state.settings.playersCount);
     state.players.forEach((p, idx) => { p.name = state.settings.playerNames[idx]; p.alive = true; });
+    const maxImpostor = getMaxSilid(state.settings.playersCount);
+    state.settings.silidCount = Math.max(1, Math.min(maxImpostor, Number(state.settings.silidCount) || 1));
+    const kepMax = getKepitingMax(state.settings.playersCount, state.settings.silidCount);
+    state.settings.kepitingCount = Math.max(0, Math.min(kepMax, Number(state.settings.kepitingCount) || 0));
 
     if (!state.settings.selectedPacks.length && !state.customPairs.length) {
       alert("Pilih minimal satu pack atau tambah custom words.");
       return;
     }
     if (state.settings.silidCount + state.settings.kepitingCount >= state.settings.playersCount) {
-      alert("Silid + Kepiting harus lebih kecil dari jumlah pemain.");
+      alert("Impostor + Kepiting harus lebih kecil dari jumlah pemain.");
       return;
     }
 
@@ -429,39 +444,39 @@ function resetVotingForAlivePlayers() {
 function roleStatsCurrentGame() {
   const roles = Object.values(state.round.assignments || {});
   const totalWarga = roles.filter((x) => x.role === "Warga").length;
-  const totalSilid = roles.filter((x) => x.role === "Silid").length;
+  const totalImpostor = roles.filter((x) => x.role === "Impostor").length;
   const totalKepiting = roles.filter((x) => x.role === "Kepiting").length;
 
   const aliveIds = new Set(state.players.filter((p) => p.alive).map((p) => p.id));
   let aliveWarga = 0;
-  let aliveSilid = 0;
+  let aliveImpostor = 0;
   let aliveKepiting = 0;
   Object.entries(state.round.assignments).forEach(([id, a]) => {
     if (!aliveIds.has(Number(id))) return;
     if (a.role === "Warga") aliveWarga += 1;
-    if (a.role === "Silid") aliveSilid += 1;
+    if (a.role === "Impostor") aliveImpostor += 1;
     if (a.role === "Kepiting") aliveKepiting += 1;
   });
 
   return {
     totalWarga,
-    totalSilid,
+    totalImpostor,
     totalKepiting,
     aliveWarga,
-    aliveSilid,
+    aliveImpostor,
     aliveKepiting,
     eliminatedWarga: totalWarga - aliveWarga,
-    eliminatedSilid: totalSilid - aliveSilid
+    eliminatedImpostor: totalImpostor - aliveImpostor
   };
 }
 
 function evaluateEliminationModeWinner() {
   const r = roleStatsCurrentGame();
-  if (r.eliminatedSilid >= r.totalSilid) {
-    return { team: "Warga", reason: "Semua Silid sudah tereliminasi." };
+  if (r.eliminatedImpostor >= r.totalImpostor) {
+    return { team: "Warga", reason: "Semua Impostor sudah tereliminasi." };
   }
   if (r.eliminatedWarga >= Math.max(1, r.totalWarga - 1)) {
-    return { team: "Silid", reason: "Warga yang tereliminasi sudah mencapai batas, Silid menang." };
+    return { team: "Impostor", reason: "Warga yang tereliminasi sudah mencapai batas, Impostor menang." };
   }
   return null;
 }
@@ -484,10 +499,10 @@ function applyFinalEliminationScores(winnerTeam) {
     });
   }
 
-  if (winnerTeam === "Silid") {
+  if (winnerTeam === "Impostor") {
     state.players.forEach((p) => {
       const role = state.round.assignments[p.id]?.role;
-      if (role !== "Silid") return;
+      if (role !== "Impostor") return;
       p.score += aliveIds.has(p.id) ? 3 : 1;
     });
   }
@@ -542,12 +557,12 @@ function finishVotingIfReady() {
   const result = tallyVotes(state.round.voting.votesByVoter);
   if (result.top.length > 1) {
     state.round.voting.revoteDepth += 1;
-    state.round.voting.tieCandidates = result.top;
+    state.round.voting.tieCandidates = null;
     state.round.voting.cursor = 0;
     state.round.voting.votesByVoter = {};
     state.round.voting.openTally = {};
     state.round.voting.voterOrder = secureShuffle(state.players.filter((p) => p.alive).map((p) => p.id));
-    updateWarning(`Vote seri. Revote ke-${state.round.voting.revoteDepth} untuk kandidat seri.`);
+    updateWarning(`Vote seri. Revote ke-${state.round.voting.revoteDepth} untuk semua pemain aktif.`);
     render();
     return true;
   }
@@ -555,7 +570,7 @@ function finishVotingIfReady() {
   const eliminatedId = result.top[0];
   eliminatePlayer(state, eliminatedId);
   const eliminatedRole = state.round.assignments[eliminatedId]?.role;
-  if (state.settings.gameMode === "elimination" && eliminatedRole === "Silid") {
+  if (state.settings.gameMode === "elimination" && eliminatedRole === "Impostor") {
     Object.entries(state.round.voting.votesByVoter).forEach(([voterId, targetId]) => {
       if (Number(targetId) !== Number(eliminatedId)) return;
       const voter = state.players.find((p) => p.id === Number(voterId));

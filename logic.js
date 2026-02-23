@@ -26,7 +26,7 @@ export function secureShuffle(items) {
 }
 
 export function getMaxSilid(playersCount) {
-  if (playersCount <= 5) return 1;
+  if (playersCount <= 4) return 1;
   if (playersCount <= 8) return 2;
   return 3;
 }
@@ -79,7 +79,7 @@ export function selectRoundPair(state, wordPool) {
 
 export function buildRolePool(activeCount, silidCount, kepitingCount) {
   const roles = [];
-  for (let i = 0; i < silidCount; i += 1) roles.push("Silid");
+  for (let i = 0; i < silidCount; i += 1) roles.push("Impostor");
   for (let i = 0; i < kepitingCount; i += 1) roles.push("Kepiting");
   while (roles.length < activeCount) roles.push("Warga");
   return secureShuffle(roles);
@@ -101,10 +101,10 @@ export function startRoundAssignments(state, pair) {
   state.round.assignments = {};
   activePlayers.forEach((p, idx) => {
     const role = roles[idx];
-    const word = role === "Warga" ? pair.main : role === "Silid" ? pair.undercover : "KAMU KEPITING 🦀 (Tidak ada kata)";
+    const word = role === "Warga" ? pair.main : role === "Impostor" ? pair.undercover : "KAMU KEPITING 🦀 (Tidak ada kata)";
     state.round.assignments[p.id] = { role, word };
     if (role === "Warga") p.stats.asWarga += 1;
-    if (role === "Silid") p.stats.asSilid += 1;
+    if (role === "Impostor") p.stats.asImpostor += 1;
     if (role === "Kepiting") p.stats.asKepiting += 1;
   });
 
@@ -164,15 +164,15 @@ export function eliminatePlayer(state, playerId) {
 export function countAliveByRole(state) {
   const aliveIds = state.players.filter((p) => p.alive).map((p) => p.id);
   let warga = 0;
-  let silid = 0;
+  let impostor = 0;
   let kepiting = 0;
   aliveIds.forEach((id) => {
     const role = state.round.assignments[id]?.role;
     if (role === "Warga") warga += 1;
-    if (role === "Silid") silid += 1;
+    if (role === "Impostor") impostor += 1;
     if (role === "Kepiting") kepiting += 1;
   });
-  return { warga, silid, kepiting, aliveCount: aliveIds.length };
+  return { warga, impostor, kepiting, aliveCount: aliveIds.length };
 }
 
 export function evaluateRoundWinnerElimination(state, kepitingGuess = "") {
@@ -189,12 +189,12 @@ export function evaluateRoundWinnerElimination(state, kepitingGuess = "") {
     return { team: "Kepiting", reason: "Kepiting bertahan hingga final 2." };
   }
 
-  if (counts.silid === 0) {
-    return { team: "Warga", reason: "Semua Silid tereliminasi." };
+  if (counts.impostor === 0) {
+    return { team: "Warga", reason: "Semua Impostor tereliminasi." };
   }
 
-  if (counts.silid >= counts.warga) {
-    return { team: "Silid", reason: "Jumlah Silid >= Warga." };
+  if (counts.impostor >= counts.warga) {
+    return { team: "Impostor", reason: "Jumlah Impostor >= Warga." };
   }
 
   return null;
@@ -209,10 +209,10 @@ export function evaluateRoundWinnerFixed(state, kepitingGuess = "") {
   if (alive.kepiting > 0 && alive.aliveCount === 2) {
     return { team: "Kepiting", reason: "Kepiting bertahan sampai final 2 ronde." };
   }
-  if (eliminatedRole === "Silid" || alive.silid === 0) {
-    return { team: "Warga", reason: "Silid tersingkir di ronde ini." };
+  if (eliminatedRole === "Impostor" || alive.impostor === 0) {
+    return { team: "Warga", reason: "Impostor tersingkir di ronde ini." };
   }
-  return { team: "Silid", reason: "Silid bertahan ronde ini." };
+  return { team: "Impostor", reason: "Impostor bertahan ronde ini." };
 }
 
 export function applyScoring(state, roundWinner) {
@@ -233,17 +233,17 @@ export function applyScoring(state, roundWinner) {
     });
   }
 
-  if (roundWinner.team === "Silid") {
+  if (roundWinner.team === "Impostor") {
     state.players.forEach((p) => {
       const role = state.round.assignments[p.id]?.role;
-      if (role !== "Silid") return;
+      if (role !== "Impostor") return;
       p.score += aliveById.has(p.id) ? 3 : 1;
     });
   }
 
   const eliminatedId = state.round.eliminatedPlayerId;
   const eliminatedRole = state.round.assignments[eliminatedId]?.role;
-  if (eliminatedRole === "Silid") {
+  if (eliminatedRole === "Impostor") {
     Object.entries(state.round.voting.votesByVoter).forEach(([voterId, targetId]) => {
       if (Number(targetId) === Number(eliminatedId)) {
         const p = state.players.find((x) => x.id === Number(voterId));

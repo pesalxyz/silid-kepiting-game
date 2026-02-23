@@ -1,4 +1,4 @@
-const CACHE_NAME = "silid-kepiting-cache-v7";
+const CACHE_NAME = "silid-kepiting-cache-v9";
 const ASSETS = [
   "./",
   "./index.html",
