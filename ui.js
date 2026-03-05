@@ -38,6 +38,11 @@ function settingsSection(state, packs) {
       <button class="btn" id="joinRoomBtn">Join Room</button>
       <button class="btn btn-ghost" id="leaveRoomBtn">Keluar Room</button>
     </div>
+    <div class="row">
+      <button class="btn btn-primary" id="onlineStartBtn" ${state.online.connected && state.online.isHost ? "" : "disabled"}>
+        ${state.online.connected ? (state.online.isHost ? "Mulai Game Online (Host)" : "Menunggu Host Mulai Game") : "Connect dulu untuk mulai online"}
+      </button>
+    </div>
   </section>
 
   <section class="card">

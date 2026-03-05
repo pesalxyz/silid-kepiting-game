@@ -310,6 +310,7 @@ function bindSetupActions() {
   const createRoomBtn = document.getElementById("createRoomBtn");
   const joinRoomBtn = document.getElementById("joinRoomBtn");
   const leaveRoomBtn = document.getElementById("leaveRoomBtn");
+  const onlineStartBtn = document.getElementById("onlineStartBtn");
 
   playersCount.onchange = () => {
     resizePlayers(Number(playersCount.value));
@@ -476,8 +477,11 @@ function bindSetupActions() {
     render();
   };
 
-  const startMatchBtn = document.getElementById("startMatchBtn");
-  if (startMatchBtn) startMatchBtn.onclick = () => {
+  const startMatch = () => {
+    if (state.online.connected && !state.online.isHost) {
+      alert("Hanya host yang bisa memulai game online.");
+      return;
+    }
     state.settings.playerNames = sanitizeNames(state.settings.playerNames, state.settings.playersCount);
     resizePlayers(state.settings.playersCount);
     state.players.forEach((p, idx) => { p.name = state.settings.playerNames[idx]; p.alive = true; });
@@ -501,6 +505,10 @@ function bindSetupActions() {
     state.round.suddenDeath = false;
     nextRound();
   };
+
+  const startMatchBtn = document.getElementById("startMatchBtn");
+  if (startMatchBtn) startMatchBtn.onclick = startMatch;
+  if (onlineStartBtn) onlineStartBtn.onclick = startMatch;
 }
 
 function nextRound() {
