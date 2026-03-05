@@ -26,6 +26,8 @@ Party word deduction game mobile-first (3-12 pemain), full client-side, offline-
 - `state.js`
 - `logic.js`
 - `ui.js`
+- `online.js`
+- `online-server.js`
 - `wordbank.js`
 - `service-worker.js`
 
@@ -38,6 +40,38 @@ Buka `index.html` di browser. (Service worker kadang terbatas bila bukan via HTT
 npx serve .
 ```
 Lalu buka URL lokal/IP LAN dari browser HP.
+
+## Main Online (Realtime)
+Fitur online memakai WebSocket room code (Host/JOIN).
+
+1. Install dependency server:
+```bash
+npm install
+```
+2. Jalankan server online:
+```bash
+npm run online:server
+```
+3. Jalankan web app (contoh):
+```bash
+npx serve .
+```
+4. Buka game di beberapa device/browser, lalu:
+- Isi `Server WebSocket` (default: `ws://localhost:8787` untuk lokal).
+- Host klik `Buat Room`.
+- Player lain isi `Room Code`, lalu klik `Join Room`.
+
+### Deploy Gratis (Railway - Free Tier/Trial)
+1. Push kode terbaru ke GitHub.
+2. Buka Railway, klik `New Project` -> `Deploy from GitHub repo`.
+3. Pilih repo game ini.
+4. Railway akan menjalankan script `npm start` (server WebSocket).
+5. Setelah deploy sukses, copy URL service (contoh: `https://xxxx.up.railway.app`).
+6. Ubah ke WebSocket secure di game:
+   - `wss://xxxx.up.railway.app`
+7. Isi URL `wss://...` itu di field `Server WebSocket`, lalu buat/join room.
+
+Catatan: free tier bisa sleep/limit, jadi untuk main rutin dan stabil biasanya perlu plan berbayar.
 
 ## Deploy GitHub Pages
 1. Push project ke repo GitHub.

@@ -41,7 +41,16 @@ export const state = {
     fixedRounds: 3,
     spectatorMode: false,
     openVotingLiveCounter: true,
-    hideRoleDuringReveal: true
+    hideRoleDuringReveal: true,
+    onlineServerUrl: "",
+    onlinePlayerName: ""
+  },
+  online: {
+    connected: false,
+    roomCode: "",
+    isHost: false,
+    clientId: "",
+    peers: []
   },
   round: {
     number: 0,

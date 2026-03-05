@@ -9,6 +9,38 @@ function settingsSection(state, packs) {
 
   return `
   <section class="card">
+    <h2>Main Online (Beta)</h2>
+    <div class="grid-2">
+      <div>
+        <label>Server WebSocket</label>
+        <input id="onlineServerUrl" type="text" value="${esc(state.settings.onlineServerUrl || "")}" placeholder="ws://localhost:8787" />
+      </div>
+      <div>
+        <label>Nama Online</label>
+        <input id="onlinePlayerName" type="text" value="${esc(state.settings.onlinePlayerName || "")}" placeholder="Nama kamu" />
+      </div>
+      <div>
+        <label>Room Code</label>
+        <input id="onlineRoomCode" type="text" value="${esc(state.online.roomCode || "")}" placeholder="Contoh: A1B2C3" />
+      </div>
+      <div class="online-status-wrap">
+        <label>Status Online</label>
+        <p class="hint online-status ${state.online.connected ? "online-on" : "online-off"}">
+          ${state.online.connected ? `Terhubung • Room ${esc(state.online.roomCode || "-")} • ${state.online.isHost ? "Host" : "Peserta"}` : "Belum terhubung"}
+        </p>
+        ${state.online.connected && state.online.peers?.length
+          ? `<p class="hint">Pemain di room: ${state.online.peers.map((p) => esc(p.name)).join(", ")}</p>`
+          : ""}
+      </div>
+    </div>
+    <div class="row">
+      <button class="btn btn-primary" id="createRoomBtn">Buat Room</button>
+      <button class="btn" id="joinRoomBtn">Join Room</button>
+      <button class="btn btn-ghost" id="leaveRoomBtn">Keluar Room</button>
+    </div>
+  </section>
+
+  <section class="card">
     <h2>Setup Game</h2>
     <div class="grid-2">
       <div><label>Jumlah Pemain (3-12)</label><input id="playersCount" type="number" min="3" max="12" value="${state.settings.playersCount}" /></div>
@@ -211,6 +243,7 @@ export function renderApp(state, packs, totalWordCount) {
         <button class="btn" id="viewWordsBtn">Lihat Kata</button>
       </div>
       <div class="top-actions secondary-actions">
+        <span class="badge ${state.online.connected ? "badge-online" : ""}">${state.online.connected ? `Online: ${esc(state.online.roomCode || "-")}` : "Offline"}</span>
         <button class="btn" id="viewHistoryBtn">History</button>
         <button class="btn btn-ghost" id="clearDataBtn">Clear Data</button>
         <button class="btn btn-danger" id="quickResetBtn">Quick Reset</button>

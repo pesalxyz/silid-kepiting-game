@@ -26,6 +26,7 @@ import {
   detectScoreTie
 } from "./logic.js";
 import { renderApp } from "./ui.js";
+import { createOnlineClient } from "./online.js";
 
 const app = document.getElementById("app");
 const howToDialog = document.getElementById("howToDialog");
@@ -33,6 +34,108 @@ const wordPeekDialog = document.getElementById("wordPeekDialog");
 const wordPeekBody = document.getElementById("wordPeekBody");
 const historyDialog = document.getElementById("historyDialog");
 const historyBody = document.getElementById("historyBody");
+let pendingOnlineAction = null;
+let applyingRemoteSnapshot = false;
+let lastSyncedStateHash = "";
+
+function defaultOnlineServerUrl() {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  const host = location.hostname || "localhost";
+  return `${proto}://${host}:8787`;
+}
+
+function syncSnapshotFromState() {
+  const cloned = JSON.parse(JSON.stringify(state));
+  delete cloned.online;
+  delete cloned._voteCandidates;
+  return cloned;
+}
+
+function applyRemoteSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") return;
+  applyingRemoteSnapshot = true;
+  const next = JSON.parse(JSON.stringify(snapshot));
+  Object.keys(next).forEach((key) => {
+    if (key === "online" || key === "_voteCandidates") return;
+    state[key] = next[key];
+  });
+  persistState();
+  render();
+  setTimeout(() => {
+    applyingRemoteSnapshot = false;
+  }, 0);
+}
+
+function publishOnlineStateIfChanged() {
+  if (applyingRemoteSnapshot) return;
+  if (!state.online.connected || !state.online.roomCode) return;
+  const snapshot = syncSnapshotFromState();
+  const hash = JSON.stringify(snapshot);
+  if (hash === lastSyncedStateHash) return;
+  lastSyncedStateHash = hash;
+  onlineClient.publishState(state.online.roomCode, snapshot);
+}
+
+const onlineClient = createOnlineClient({
+  onOpen() {
+    state.online.connected = true;
+    updateWarning("Terhubung ke server online.");
+    if (!pendingOnlineAction) {
+      render();
+      return;
+    }
+    if (pendingOnlineAction.mode === "create") {
+      onlineClient.createRoom(pendingOnlineAction.playerName);
+    } else {
+      onlineClient.joinRoom(pendingOnlineAction.roomCode, pendingOnlineAction.playerName);
+    }
+  },
+  onClose() {
+    state.online.connected = false;
+    state.online.roomCode = "";
+    state.online.clientId = "";
+    state.online.isHost = false;
+    state.online.peers = [];
+    pendingOnlineAction = null;
+    updateWarning("Koneksi online terputus.");
+    render();
+  },
+  onRoom(msg) {
+    pendingOnlineAction = null;
+    state.online.connected = true;
+    state.online.roomCode = msg.roomCode || "";
+    state.online.isHost = Boolean(msg.isHost);
+    state.online.clientId = msg.clientId || state.online.clientId;
+    state.online.peers = Array.isArray(msg.peers) ? msg.peers : [];
+    updateWarning(`Online aktif di room ${state.online.roomCode}.`);
+    if (msg.snapshot) {
+      applyRemoteSnapshot(msg.snapshot);
+      return;
+    }
+    render();
+  },
+  onPeers(msg) {
+    if (msg.roomCode && msg.roomCode !== state.online.roomCode) return;
+    state.online.peers = Array.isArray(msg.peers) ? msg.peers : [];
+    const me = state.online.peers.find((p) => p.clientId === state.online.clientId);
+    if (me) state.online.isHost = Boolean(me.isHost);
+    render();
+  },
+  onHostChanged(msg) {
+    if (msg.roomCode !== state.online.roomCode) return;
+    state.online.isHost = msg.hostId === state.online.clientId;
+    updateWarning(state.online.isHost ? "Anda sekarang menjadi host room." : "Host room berubah.");
+    render();
+  },
+  onState(msg) {
+    if (msg.senderId && msg.senderId === state.online.clientId) return;
+    applyRemoteSnapshot(msg.snapshot);
+  },
+  onServerError(msg) {
+    updateWarning(msg.message || "Terjadi error pada server online.");
+    render();
+  }
+});
 
 function normalize(s) {
   return (s || "").trim().toLowerCase();
@@ -89,6 +192,7 @@ function render() {
   setTheme();
   bindCommonActions();
   bindPhaseActions();
+  publishOnlineStateIfChanged();
 }
 
 function lockPortraitSafe() {
@@ -200,6 +304,12 @@ function bindSetupActions() {
   const fixedRounds = document.getElementById("fixedRounds");
   const spectatorMode = document.getElementById("spectatorMode");
   const hideRoleDuringReveal = document.getElementById("hideRoleDuringReveal");
+  const onlineServerUrl = document.getElementById("onlineServerUrl");
+  const onlinePlayerName = document.getElementById("onlinePlayerName");
+  const onlineRoomCode = document.getElementById("onlineRoomCode");
+  const createRoomBtn = document.getElementById("createRoomBtn");
+  const joinRoomBtn = document.getElementById("joinRoomBtn");
+  const leaveRoomBtn = document.getElementById("leaveRoomBtn");
 
   playersCount.onchange = () => {
     resizePlayers(Number(playersCount.value));
@@ -266,6 +376,66 @@ function bindSetupActions() {
     state.settings.hideRoleDuringReveal = hideRoleDuringReveal.value === "on";
     persistState();
   };
+
+  onlineServerUrl.onchange = () => {
+    state.settings.onlineServerUrl = onlineServerUrl.value.trim();
+    persistState();
+  };
+
+  onlinePlayerName.onchange = () => {
+    state.settings.onlinePlayerName = onlinePlayerName.value.trim();
+    persistState();
+  };
+
+  if (createRoomBtn) {
+    createRoomBtn.onclick = () => {
+      const serverUrl = (onlineServerUrl.value || "").trim() || defaultOnlineServerUrl();
+      const playerName = (onlinePlayerName.value || "").trim() || "Host";
+      state.settings.onlineServerUrl = serverUrl;
+      state.settings.onlinePlayerName = playerName;
+      persistState();
+      pendingOnlineAction = { mode: "create", playerName };
+      onlineClient.connect(serverUrl);
+      if (onlineClient.isConnected()) {
+        const sent = onlineClient.createRoom(playerName);
+        if (sent) pendingOnlineAction = null;
+      }
+    };
+  }
+
+  if (joinRoomBtn) {
+    joinRoomBtn.onclick = () => {
+      const roomCode = (onlineRoomCode.value || "").toUpperCase().trim();
+      if (!roomCode) {
+        alert("Masukkan room code dulu.");
+        return;
+      }
+      const serverUrl = (onlineServerUrl.value || "").trim() || defaultOnlineServerUrl();
+      const playerName = (onlinePlayerName.value || "").trim() || "Pemain";
+      state.settings.onlineServerUrl = serverUrl;
+      state.settings.onlinePlayerName = playerName;
+      persistState();
+      pendingOnlineAction = { mode: "join", roomCode, playerName };
+      onlineClient.connect(serverUrl);
+      if (onlineClient.isConnected()) {
+        const sent = onlineClient.joinRoom(roomCode, playerName);
+        if (sent) pendingOnlineAction = null;
+      }
+    };
+  }
+
+  if (leaveRoomBtn) {
+    leaveRoomBtn.onclick = () => {
+      onlineClient.disconnect();
+      state.online.connected = false;
+      state.online.roomCode = "";
+      state.online.isHost = false;
+      state.online.clientId = "";
+      state.online.peers = [];
+      updateWarning("Keluar dari room online.");
+      render();
+    };
+  }
 
   app.querySelectorAll("[data-player-name]").forEach((el) => {
     el.addEventListener("change", () => {
@@ -783,6 +953,8 @@ function registerServiceWorker() {
 
 function bootstrap() {
   hydrateState();
+  if (!state.settings.onlineServerUrl) state.settings.onlineServerUrl = defaultOnlineServerUrl();
+  if (!state.settings.onlinePlayerName) state.settings.onlinePlayerName = "Pemain";
   setTheme();
   registerServiceWorker();
   antiBackLeakGuard();

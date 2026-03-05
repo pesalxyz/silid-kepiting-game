@@ -169,6 +169,7 @@ body[data-theme="light"] .pill { background: rgba(250, 254, 255, 0.95); }
 .vote-counter { display: flex; align-items: center; justify-content: space-between; border: 1px dashed var(--line); border-radius: 10px; padding: 8px 10px; }
 
 .badge { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 4px 9px; font-size: 0.78rem; color: var(--muted); }
+.badge-online { color: #bbf7d0; border-color: rgba(34, 197, 94, 0.4); background: rgba(21, 128, 61, 0.2); }
 .meta-strip {
   display: flex;
   flex-wrap: wrap;
@@ -183,6 +184,10 @@ body[data-theme="light"] .pill { background: rgba(250, 254, 255, 0.95); }
 .table th, .table td { padding: 8px 6px; border-top: 1px solid var(--line); text-align: left; font-size: 0.9rem; }
 
 .history-item { display: flex; justify-content: space-between; border-top: 1px dashed var(--line); padding: 7px 0; font-size: 0.86rem; }
+.online-status-wrap { display: flex; flex-direction: column; justify-content: center; }
+.online-status { margin: 0; font-weight: 700; }
+.online-on { color: #86efac; }
+.online-off { color: #fda4af; }
 
 dialog { border: none; border-radius: 16px; width: min(92vw, 540px); background: transparent; padding: 0; }
 dialog::backdrop { background: rgba(3, 12, 16, 0.66); }
