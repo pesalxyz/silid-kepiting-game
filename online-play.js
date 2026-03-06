@@ -444,7 +444,6 @@ function renderReveal(room, meId) {
     <p class="hint">Setiap user reveal perannya sendiri. Game lanjut otomatis setelah semua reveal.</p>
     <div class="card center">
       <h3>Info Kamu di Ronde Ini</h3>
-      <p class="role">Peran: ${esc((mine?.role || "-").toLowerCase())}</p>
       <p class="word">Kata: ${esc((mine?.word || "-").toLowerCase())}</p>
       <button class="btn" id="revealDoneBtn" ${room.revealed[meId] ? "disabled" : ""}>${room.revealed[meId] ? "Sudah Reveal" : "Saya Sudah Reveal"}</button>
     </div>
