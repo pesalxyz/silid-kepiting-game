@@ -5,7 +5,7 @@ const app = document.getElementById("onlineApp");
 
 const online = {
   connected: false,
-  serverUrl: `${location.protocol === "https:" ? "wss" : "ws"}://${location.hostname || "localhost"}:8787`,
+  serverUrl: "wss://silid-kepiting-game-production.up.railway.app",
   name: "",
   roomCode: "",
   clientId: "",
@@ -16,15 +16,24 @@ const online = {
   timerId: null,
   warning: ""
 };
+let pendingAction = null;
 
 const client = createOnlineClient({
   onOpen() {
     online.connected = true;
     online.warning = "Terhubung ke server.";
+    if (pendingAction?.mode === "create") {
+      const sent = client.createRoom(pendingAction.playerName);
+      if (sent) pendingAction = null;
+    } else if (pendingAction?.mode === "join") {
+      const sent = client.joinRoom(pendingAction.roomCode, pendingAction.playerName);
+      if (sent) pendingAction = null;
+    }
     render();
   },
   onClose() {
     stopHostTimer();
+    pendingAction = null;
     online.connected = false;
     online.roomCode = "";
     online.isHost = false;
@@ -584,7 +593,14 @@ function bindActions() {
   if (createRoomBtn) createRoomBtn.onclick = () => {
     if (!ensureConnected()) return;
     const name = online.name || "Host";
-    client.createRoom(name);
+    pendingAction = { mode: "create", playerName: name };
+    if (online.connected) {
+      const sent = client.createRoom(name);
+      if (sent) pendingAction = null;
+    } else {
+      online.warning = "Menghubungkan ke server, mohon tunggu...";
+      render();
+    }
   };
 
   const joinRoomBtn = document.getElementById("joinRoomBtn");
@@ -596,7 +612,14 @@ function bindActions() {
     }
     if (!ensureConnected()) return;
     const name = online.name || "Pemain";
-    client.joinRoom(online.roomCode, name);
+    pendingAction = { mode: "join", roomCode: online.roomCode, playerName: name };
+    if (online.connected) {
+      const sent = client.joinRoom(online.roomCode, name);
+      if (sent) pendingAction = null;
+    } else {
+      online.warning = "Menghubungkan ke server, mohon tunggu...";
+      render();
+    }
   };
 
   const leaveRoomBtn = document.getElementById("leaveRoomBtn");

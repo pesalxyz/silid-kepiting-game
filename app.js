@@ -39,9 +39,7 @@ let applyingRemoteSnapshot = false;
 let lastSyncedStateHash = "";
 
 function defaultOnlineServerUrl() {
-  const proto = location.protocol === "https:" ? "wss" : "ws";
-  const host = location.hostname || "localhost";
-  return `${proto}://${host}:8787`;
+  return "wss://silid-kepiting-game-production.up.railway.app";
 }
 
 function syncSnapshotFromState() {

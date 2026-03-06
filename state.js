@@ -42,7 +42,7 @@ export const state = {
     spectatorMode: false,
     openVotingLiveCounter: true,
     hideRoleDuringReveal: true,
-    onlineServerUrl: "",
+    onlineServerUrl: "wss://silid-kepiting-game-production.up.railway.app",
     onlinePlayerName: ""
   },
   online: {
