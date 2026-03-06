@@ -1,9 +1,11 @@
-const CACHE_NAME = "silid-kepiting-cache-v11";
+const CACHE_NAME = "silid-kepiting-cache-v12";
 const ASSETS = [
   "./",
   "./index.html",
+  "./online.html",
   "./styles.css",
   "./app.js",
+  "./online-play.js",
   "./state.js",
   "./logic.js",
   "./ui.js",

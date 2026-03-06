@@ -157,6 +157,23 @@ wss.on("connection", (ws) => {
       }
       room.snapshot = msg.snapshot || null;
       broadcastState(room, ws.clientId, room.snapshot);
+      return;
+    }
+
+    if (msg.type === "player_action") {
+      const roomCode = String(msg.roomCode || "").toUpperCase().trim();
+      const room = rooms.get(roomCode);
+      if (!room || ws.roomCode !== roomCode) {
+        send(ws, "server_error", { message: "Anda belum join room ini." });
+        return;
+      }
+      const host = room.members.find((m) => m.clientId === room.hostId);
+      if (!host) return;
+      send(host.ws, "player_action", {
+        roomCode,
+        senderId: ws.clientId,
+        action: msg.action || null
+      });
     }
   });
 

@@ -243,6 +243,7 @@ export function renderApp(state, packs, totalWordCount) {
         <p class="subtitle">Party word deduction game</p>
       </div>
       <div class="top-actions primary-actions">
+        <button class="btn btn-primary" id="goOnlinePageBtn">Main Online</button>
         <button class="btn" id="themeToggleBtn">${state.theme === "dark" ? "Light" : "Dark"} Mode</button>
         <button class="btn" id="howToBtn">Cara Main</button>
         <button class="btn" id="viewWordsBtn">Lihat Kata</button>

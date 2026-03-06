@@ -237,6 +237,9 @@ function antiBackLeakGuard() {
 
 function bindCommonActions() {
   const themeBtn = document.getElementById("themeToggleBtn");
+  const goOnlinePageBtn = document.getElementById("goOnlinePageBtn");
+  if (goOnlinePageBtn) goOnlinePageBtn.onclick = () => { location.href = "./online.html"; };
+
   if (themeBtn) themeBtn.onclick = () => {
     state.theme = state.theme === "dark" ? "light" : "dark";
     persistState();

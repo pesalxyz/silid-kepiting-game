@@ -44,6 +44,8 @@ Lalu buka URL lokal/IP LAN dari browser HP.
 ## Main Online (Realtime)
 Fitur online memakai WebSocket room code (Host/JOIN).
 
+Halaman online terpisah: `online.html` (bisa dibuka dari tombol `Main Online` di halaman utama).
+
 1. Install dependency server:
 ```bash
 npm install

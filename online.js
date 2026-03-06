@@ -48,6 +48,10 @@ export function createOnlineClient(handlers = {}) {
         emit("onState", msg);
         return;
       }
+      if (msg.type === "player_action") {
+        emit("onPlayerAction", msg);
+        return;
+      }
       if (msg.type === "peers_update") {
         emit("onPeers", msg);
         return;
@@ -81,6 +85,9 @@ export function createOnlineClient(handlers = {}) {
     },
     publishState(roomCode, snapshot) {
       return send("state_sync", { roomCode, snapshot });
+    },
+    sendPlayerAction(roomCode, action) {
+      return send("player_action", { roomCode, action });
     }
   };
 }
