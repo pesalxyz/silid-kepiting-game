@@ -307,13 +307,6 @@ function bindSetupActions() {
   const fixedRounds = document.getElementById("fixedRounds");
   const spectatorMode = document.getElementById("spectatorMode");
   const hideRoleDuringReveal = document.getElementById("hideRoleDuringReveal");
-  const onlineServerUrl = document.getElementById("onlineServerUrl");
-  const onlinePlayerName = document.getElementById("onlinePlayerName");
-  const onlineRoomCode = document.getElementById("onlineRoomCode");
-  const createRoomBtn = document.getElementById("createRoomBtn");
-  const joinRoomBtn = document.getElementById("joinRoomBtn");
-  const leaveRoomBtn = document.getElementById("leaveRoomBtn");
-  const onlineStartBtn = document.getElementById("onlineStartBtn");
 
   playersCount.onchange = () => {
     resizePlayers(Number(playersCount.value));
@@ -380,66 +373,6 @@ function bindSetupActions() {
     state.settings.hideRoleDuringReveal = hideRoleDuringReveal.value === "on";
     persistState();
   };
-
-  onlineServerUrl.onchange = () => {
-    state.settings.onlineServerUrl = onlineServerUrl.value.trim();
-    persistState();
-  };
-
-  onlinePlayerName.onchange = () => {
-    state.settings.onlinePlayerName = onlinePlayerName.value.trim();
-    persistState();
-  };
-
-  if (createRoomBtn) {
-    createRoomBtn.onclick = () => {
-      const serverUrl = (onlineServerUrl.value || "").trim() || defaultOnlineServerUrl();
-      const playerName = (onlinePlayerName.value || "").trim() || "Host";
-      state.settings.onlineServerUrl = serverUrl;
-      state.settings.onlinePlayerName = playerName;
-      persistState();
-      pendingOnlineAction = { mode: "create", playerName };
-      onlineClient.connect(serverUrl);
-      if (onlineClient.isConnected()) {
-        const sent = onlineClient.createRoom(playerName);
-        if (sent) pendingOnlineAction = null;
-      }
-    };
-  }
-
-  if (joinRoomBtn) {
-    joinRoomBtn.onclick = () => {
-      const roomCode = (onlineRoomCode.value || "").toUpperCase().trim();
-      if (!roomCode) {
-        alert("Masukkan room code dulu.");
-        return;
-      }
-      const serverUrl = (onlineServerUrl.value || "").trim() || defaultOnlineServerUrl();
-      const playerName = (onlinePlayerName.value || "").trim() || "Pemain";
-      state.settings.onlineServerUrl = serverUrl;
-      state.settings.onlinePlayerName = playerName;
-      persistState();
-      pendingOnlineAction = { mode: "join", roomCode, playerName };
-      onlineClient.connect(serverUrl);
-      if (onlineClient.isConnected()) {
-        const sent = onlineClient.joinRoom(roomCode, playerName);
-        if (sent) pendingOnlineAction = null;
-      }
-    };
-  }
-
-  if (leaveRoomBtn) {
-    leaveRoomBtn.onclick = () => {
-      onlineClient.disconnect();
-      state.online.connected = false;
-      state.online.roomCode = "";
-      state.online.isHost = false;
-      state.online.clientId = "";
-      state.online.peers = [];
-      updateWarning("Keluar dari room online.");
-      render();
-    };
-  }
 
   app.querySelectorAll("[data-player-name]").forEach((el) => {
     el.addEventListener("change", () => {
@@ -511,7 +444,6 @@ function bindSetupActions() {
 
   const startMatchBtn = document.getElementById("startMatchBtn");
   if (startMatchBtn) startMatchBtn.onclick = startMatch;
-  if (onlineStartBtn) onlineStartBtn.onclick = startMatch;
 }
 
 function nextRound() {
