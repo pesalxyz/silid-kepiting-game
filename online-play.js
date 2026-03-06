@@ -110,6 +110,52 @@ function pickPair() {
   return WORD_BANK[secureRandomInt(WORD_BANK.length)] || { main: "Kucing", undercover: "Harimau" };
 }
 
+function normalizeWord(s) {
+  return String(s || "").trim().toLowerCase();
+}
+
+function pairKey(main, undercover) {
+  return `${normalizeWord(main)}__${normalizeWord(undercover)}`;
+}
+
+function getMaxImpostor(playersCount) {
+  if (playersCount <= 4) return 1;
+  if (playersCount <= 8) return 2;
+  return 3;
+}
+
+function getMaxKepiting(playersCount, impostorCount) {
+  const base = playersCount >= 7 ? 2 : 1;
+  return Math.max(0, Math.min(base, playersCount - impostorCount - 1));
+}
+
+function pickPairWithSettings(room) {
+  const settings = room.settings || {};
+  const difficulty = Number(settings.difficulty || 0);
+  const antiRepeatN = Math.max(0, Number(settings.antiRepeatN || 50));
+  let pool = WORD_BANK;
+  if (difficulty > 0) {
+    pool = pool.filter((w) => Number(w.difficulty) === difficulty);
+  }
+  if (!pool.length) pool = WORD_BANK;
+
+  const recent = new Set((room.usedPairs || []).slice(0, antiRepeatN).map((x) => x.key));
+  const fresh = pool.filter((w) => !recent.has(pairKey(w.main, w.undercover)));
+  const source = fresh.length ? fresh : pool;
+  const pick = source[secureRandomInt(source.length)] || { main: "Kucing", undercover: "Harimau", pack: "Random" };
+
+  room.usedPairs = room.usedPairs || [];
+  room.usedPairs.unshift({
+    key: pairKey(pick.main, pick.undercover),
+    main: pick.main,
+    undercover: pick.undercover,
+    pack: pick.pack || "Random",
+    ts: Date.now()
+  });
+
+  return pick;
+}
+
 function getPeerName(id) {
   return online.peers.find((p) => p.clientId === id)?.name || id.slice(0, 6);
 }
@@ -160,10 +206,16 @@ function startGameFromHost() {
     return;
   }
 
-  const impostorCount = Math.max(1, Math.min(3, Number(document.getElementById("hostImpostorCount")?.value || 1)));
-  const kepitingBase = playersCount >= 7 ? 2 : 1;
-  const kepitingCount = Math.max(0, Math.min(kepitingBase, Number(document.getElementById("hostKepitingCount")?.value || 1)));
+  const impostorCount = Math.max(1, Math.min(getMaxImpostor(playersCount), Number(document.getElementById("hostImpostorCount")?.value || 1)));
+  const kepitingCount = Math.max(0, Math.min(getMaxKepiting(playersCount, impostorCount), Number(document.getElementById("hostKepitingCount")?.value || 1)));
   const discussionMinutes = Math.max(1, Math.min(10, Number(document.getElementById("hostDiscussionMinutes")?.value || 3)));
+  const antiRepeatN = Math.max(0, Math.min(300, Number(document.getElementById("hostAntiRepeatN")?.value || 50)));
+  const difficulty = Math.max(0, Math.min(3, Number(document.getElementById("hostDifficulty")?.value || 0)));
+  const votingMode = String(document.getElementById("hostVotingMode")?.value || "secret");
+  const gameMode = String(document.getElementById("hostGameMode")?.value || "elimination");
+  const fixedRounds = [3, 5].includes(Number(document.getElementById("hostFixedRounds")?.value)) ? Number(document.getElementById("hostFixedRounds")?.value) : 3;
+  const spectatorMode = String(document.getElementById("hostSpectatorMode")?.value || "off") === "on";
+  const hideRoleDuringReveal = String(document.getElementById("hostHideRoleDuringReveal")?.value || "on") === "on";
 
   if (impostorCount + kepitingCount >= playersCount) {
     online.warning = "Impostor + Kepiting harus lebih kecil dari jumlah pemain.";
@@ -171,7 +223,22 @@ function startGameFromHost() {
     return;
   }
 
-  const pair = pickPair();
+  const settings = {
+    playersCount,
+    discussionSeconds: discussionMinutes * 60,
+    impostorCount,
+    kepitingCount,
+    antiRepeatN,
+    difficulty,
+    votingMode,
+    gameMode,
+    fixedRounds,
+    spectatorMode,
+    hideRoleDuringReveal
+  };
+
+  const seedRoom = { settings, usedPairs: [] };
+  const pair = pickPairWithSettings(seedRoom);
   const peerIds = online.peers.map((p) => p.clientId);
   const roles = [];
   for (let i = 0; i < impostorCount; i += 1) roles.push("Impostor");
@@ -192,11 +259,8 @@ function startGameFromHost() {
     phase: "reveal",
     round: 1,
     pair,
-    settings: {
-      discussionSeconds: discussionMinutes * 60,
-      impostorCount,
-      kepitingCount
-    },
+    settings,
+    usedPairs: seedRoom.usedPairs,
     players: online.peers.map((p) => ({ id: p.clientId, name: p.name, alive: true })),
     assignments,
     revealed: {},
@@ -209,7 +273,7 @@ function startGameFromHost() {
       note: ""
     },
     discussion: {
-      remainingSec: discussionMinutes * 60,
+      remainingSec: settings.discussionSeconds,
       running: false
     },
     eliminatedId: null,
@@ -384,8 +448,9 @@ function statusList(title, room, map) {
 }
 
 function renderLobby() {
-  const maxImpostor = online.peers.length <= 4 ? 1 : online.peers.length <= 8 ? 2 : 3;
-  const maxKepiting = online.peers.length >= 7 ? 2 : 1;
+  const playersCount = Math.max(online.peers.length, 3);
+  const maxImpostor = getMaxImpostor(playersCount);
+  const maxKepiting = getMaxKepiting(playersCount, Number(document.getElementById("hostImpostorCount")?.value || 1));
 
   return `
   <section class="card">
@@ -426,11 +491,58 @@ function renderLobby() {
   ${online.isHost ? `
   <section class="card">
     <h3>Setup Host</h3>
-    <div class="grid-3">
-      <div><label>Jumlah Impostor</label><input id="hostImpostorCount" type="number" min="1" max="${Math.max(1, maxImpostor)}" value="1" /></div>
-      <div><label>Jumlah Kepiting</label><input id="hostKepitingCount" type="number" min="0" max="${Math.max(0, maxKepiting)}" value="1" /></div>
-      <div><label>Diskusi (menit)</label><input id="hostDiscussionMinutes" type="number" min="1" max="10" value="3" /></div>
+    <div class="grid-2">
+      <div><label>Jumlah Pemain (3-12)</label><input id="hostPlayersCount" type="number" min="3" max="12" value="${playersCount}" disabled /></div>
+      <div><label>Jumlah Impostor (1-${Math.max(1, maxImpostor)})</label><input id="hostImpostorCount" type="number" min="1" max="${Math.max(1, maxImpostor)}" value="1" /></div>
+      <div><label>Jumlah Kepiting (0-${Math.max(0, maxKepiting)})</label><input id="hostKepitingCount" type="number" min="0" max="${Math.max(0, maxKepiting)}" value="1" /></div>
+      <div><label>Durasi Diskusi (1-10 menit)</label><input id="hostDiscussionMinutes" type="number" min="1" max="10" value="3" /></div>
+      <div><label>Anti-repeat Last N</label><input id="hostAntiRepeatN" type="number" min="0" max="300" value="50" /></div>
+      <div>
+        <label>Difficulty</label>
+        <select id="hostDifficulty">
+          <option value="0" selected>Semua</option>
+          <option value="1">Mudah</option>
+          <option value="2">Sedang</option>
+          <option value="3">Sulit</option>
+        </select>
+      </div>
+      <div>
+        <label>Mode Voting</label>
+        <select id="hostVotingMode">
+          <option value="secret" selected>Pass & Vote (Secret)</option>
+          <option value="open">Open Vote</option>
+        </select>
+      </div>
+      <div>
+        <label>Mode Game</label>
+        <select id="hostGameMode">
+          <option value="elimination" selected>Elimination</option>
+          <option value="fixed">Fixed Rounds</option>
+        </select>
+      </div>
+      <div>
+        <label>Jumlah Fixed Round</label>
+        <select id="hostFixedRounds">
+          <option value="3" selected>3</option>
+          <option value="5">5</option>
+        </select>
+      </div>
+      <div>
+        <label>Spectator Mode</label>
+        <select id="hostSpectatorMode">
+          <option value="off" selected>Off</option>
+          <option value="on">On</option>
+        </select>
+      </div>
+      <div>
+        <label>Sembunyikan Peran Saat Reveal</label>
+        <select id="hostHideRoleDuringReveal">
+          <option value="on" selected>On</option>
+          <option value="off">Off</option>
+        </select>
+      </div>
     </div>
+    <p class="hint">Untuk 2 Kepiting, pemain minimal 7 orang.</p>
     <button class="btn btn-primary btn-xl" id="hostStartGameBtn">Mulai Game Online</button>
   </section>` : ""}
   `;
@@ -626,6 +738,24 @@ function bindActions() {
 
   const hostStartGameBtn = document.getElementById("hostStartGameBtn");
   if (hostStartGameBtn) hostStartGameBtn.onclick = startGameFromHost;
+
+  const hostImpostorCount = document.getElementById("hostImpostorCount");
+  if (hostImpostorCount) {
+    hostImpostorCount.onchange = () => {
+      const playersCount = Math.max(online.peers.length, 3);
+      const maxImpostor = getMaxImpostor(playersCount);
+      const nextImpostor = Math.max(1, Math.min(maxImpostor, Number(hostImpostorCount.value) || 1));
+      hostImpostorCount.value = String(nextImpostor);
+
+      const hostKepitingCount = document.getElementById("hostKepitingCount");
+      if (hostKepitingCount) {
+        const maxKepiting = getMaxKepiting(playersCount, nextImpostor);
+        hostKepitingCount.max = String(Math.max(0, maxKepiting));
+        const nextKepiting = Math.max(0, Math.min(maxKepiting, Number(hostKepitingCount.value) || 0));
+        hostKepitingCount.value = String(nextKepiting);
+      }
+    };
+  }
 
   const revealDoneBtn = document.getElementById("revealDoneBtn");
   if (revealDoneBtn) revealDoneBtn.onclick = () => {
