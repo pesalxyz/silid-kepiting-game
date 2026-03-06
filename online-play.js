@@ -443,12 +443,9 @@ function renderReveal(room, meId) {
     <h2>Reveal Peran</h2>
     <p class="hint">Setiap user reveal perannya sendiri. Game lanjut otomatis setelah semua reveal.</p>
     <div class="card center">
-      <h3>Peran Kamu</h3>
-      <button class="btn btn-primary" id="revealMineBtn">${online.revealOpen ? "Sembunyikan" : "Lihat Peran Saya"}</button>
-      <div class="${online.revealOpen ? "" : "hidden"}">
-        <p class="role">${esc(mine?.role || "-")}</p>
-        <p class="word">${esc(mine?.word || "-")}</p>
-      </div>
+      <h3>Info Kamu di Ronde Ini</h3>
+      <p class="role">Peran: ${esc((mine?.role || "-").toLowerCase())}</p>
+      <p class="word">Kata: ${esc((mine?.word || "-").toLowerCase())}</p>
       <button class="btn" id="revealDoneBtn" ${room.revealed[meId] ? "disabled" : ""}>${room.revealed[meId] ? "Sudah Reveal" : "Saya Sudah Reveal"}</button>
     </div>
   </section>
@@ -630,12 +627,6 @@ function bindActions() {
 
   const hostStartGameBtn = document.getElementById("hostStartGameBtn");
   if (hostStartGameBtn) hostStartGameBtn.onclick = startGameFromHost;
-
-  const revealMineBtn = document.getElementById("revealMineBtn");
-  if (revealMineBtn) revealMineBtn.onclick = () => {
-    online.revealOpen = !online.revealOpen;
-    render();
-  };
 
   const revealDoneBtn = document.getElementById("revealDoneBtn");
   if (revealDoneBtn) revealDoneBtn.onclick = () => {
